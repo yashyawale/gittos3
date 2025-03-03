@@ -1,4 +1,5 @@
 import datetime
+import time
 
 # Get current date
 current_date = datetime.date.today().strftime('%Y-%m-%d')
@@ -30,23 +31,31 @@ if add[:1] == 'y':
 # Open the log file for appending
 log_file = "birthday_log.txt"
 
-# Check for birthdays today
-with open(log_file, "a") as log:
-    for birthday in bday_log:
-        if current_date_lst[1] == birthday[1][1] and current_date_lst[2] == birthday[1][2]:
-            age = int(current_date_lst[0]) - int(birthday[1][0])
-            
-            # Determine ordinal suffix (st, nd, rd, th)
-            if 11 <= age % 100 <= 13:
-                ordinal_suffix = "th"
-            else:
-                ordinal_suffix = {1: "st", 2: "nd", 3: "rd"}.get(age % 10, "th")
+print("\nBirthday logger is running... Press CTRL+C to stop.\n")
 
-            birthday_message = f"It's {birthday[0]}'s {age}{ordinal_suffix} Birthday!"
-            print(birthday_message)
+# Run indefinitely (update log every 3 seconds)
+try:
+    while True:
+        current_time = datetime.datetime.now().strftime('%H:%M:%S')
+        with open(log_file, "a") as log:
+            for birthday in bday_log:
+                if current_date_lst[1] == birthday[1][1] and current_date_lst[2] == birthday[1][2]:
+                    age = int(current_date_lst[0]) - int(birthday[1][0])
+                    
+                    # Determine ordinal suffix (st, nd, rd, th)
+                    if 11 <= age % 100 <= 13:
+                        ordinal_suffix = "th"
+                    else:
+                        ordinal_suffix = {1: "st", 2: "nd", 3: "rd"}.get(age % 10, "th")
 
-            # Log to file
-            log.write(f"{current_date}: {birthday_message}\n")
+                    birthday_message = f"{current_time} - Happy Birthday {birthday[0]}! 🎉 It's their {age}{ordinal_suffix} Birthday!"
+                    print(birthday_message)
 
-print("Birthday check complete. Log updated.")
+                    # Log to file
+                    log.write(f"{current_date} {current_time}: {birthday_message}\n")
+        
+        # Wait for 3 seconds before next log entry
+        time.sleep(3)
 
+except KeyboardInterrupt:
+    print("\nBirthday logger stopped. 🎂")
