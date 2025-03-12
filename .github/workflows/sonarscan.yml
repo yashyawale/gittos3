@@ -19,7 +19,16 @@ jobs:
       - name: Start SonarQube (Docker)
         run: |
           docker run -d --name sonarqube -p 9000:9000 sonarqube:lts
-          sleep 30  # Wait for SonarQube to start
+          echo "Waiting for SonarQube to be ready..."
+          # Wait until SonarQube API responds with status 200
+          for i in {1..30}; do
+            if curl -s -o /dev/null -w "%{http_code}" http://localhost:9000/api/system/status | grep -q "200"; then
+              echo "SonarQube is ready!"
+              break
+            fi
+            echo "Waiting for SonarQube to start... ($i/30)"
+            sleep 10
+          done
 
       - name: Install SonarQube Scanner
         run: |
@@ -30,7 +39,7 @@ jobs:
 
       - name: Run SonarQube Scan
         env:
-          SONAR_TOKEN: $sqa_a9d453d8a0528b5578ef289925bbc51ec7bd53c4
+          SONAR_TOKEN: sqa_a9d453d8a0528b5578ef289925bbc51ec7bd53c4
           SONAR_HOST_URL: "http://localhost:9000"
         run: |
           sonar-scanner \
@@ -48,22 +57,3 @@ jobs:
             echo "❌ Security vulnerabilities found! Stopping pipeline."
             exit 1
           fi
-
-  deploy_to_aws:
-    needs: sonar_scan  # Only runs if the SonarQube check passes
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: $AKIAXWHDL474OVPSRFN7
-          aws-secret-access-key: $LPRv1BF7lEiw+R8+e/MqVoNXi4KD+1kQmz51ZnlH
-          region: us-east-1
-
-      - name: Trigger AWS CodePipeline
-        run: |
-          aws codepipeline start-pipeline-execution --name MyAWSCodePipeline
