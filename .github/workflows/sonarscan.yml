@@ -39,7 +39,7 @@ jobs:
 
       - name: Run SonarQube Scan
         env:
-          SONAR_TOKEN: sqa_a9d453d8a0528b5578ef289925bbc51ec7bd53c4
+          SONAR_TOKEN: $sqa_a9d453d8a0528b5578ef289925bbc51ec7bd53c4
           SONAR_HOST_URL: "http://localhost:9000"
         run: |
           sonar-scanner \
