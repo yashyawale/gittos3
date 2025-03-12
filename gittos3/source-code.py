@@ -59,3 +59,4 @@ try:
 
 except KeyboardInterrupt:
     print("\nBirthday logger stopped. 🎂")
+    print("yash")
