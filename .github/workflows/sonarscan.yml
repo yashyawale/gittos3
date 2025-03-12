@@ -1,0 +1,69 @@
+name: SonarQube Scan & Deploy to AWS
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  sonar_scan:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Start SonarQube (Docker)
+        run: |
+          docker run -d --name sonarqube -p 9000:9000 sonarqube:lts
+          sleep 30  # Wait for SonarQube to start
+
+      - name: Install SonarQube Scanner
+        run: |
+          wget -O sonar-scanner.zip https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip
+          unzip sonar-scanner.zip
+          mv sonar-scanner-5.0.1.3006-linux /opt/sonar-scanner
+          echo "/opt/sonar-scanner/bin" >> $GITHUB_PATH
+
+      - name: Run SonarQube Scan
+        env:
+          SONAR_TOKEN: $sqa_a9d453d8a0528b5578ef289925bbc51ec7bd53c4
+          SONAR_HOST_URL: "http://localhost:9000"
+        run: |
+          sonar-scanner \
+            -Dsonar.projectKey=MyProject \
+            -Dsonar.sources=. \
+            -Dsonar.host.url=$SONAR_HOST_URL \
+            -Dsonar.login=$SONAR_TOKEN
+
+      - name: Check SonarQube Quality Gate
+        run: |
+          sleep 10
+          STATUS=$(curl -s -u admin:$sqa_a9d453d8a0528b5578ef289925bbc51ec7bd53c4 "http://localhost:9000/api/qualitygates/project_status?projectKey=MyProject" | jq -r '.projectStatus.status')
+          echo "SonarQube Quality Gate Status: $STATUS"
+          if [[ "$STATUS" != "OK" ]]; then
+            echo "❌ Security vulnerabilities found! Stopping pipeline."
+            exit 1
+          fi
+
+  deploy_to_aws:
+    needs: sonar_scan  # Only runs if the SonarQube check passes
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: $AKIAXWHDL474OVPSRFN7
+          aws-secret-access-key: $LPRv1BF7lEiw+R8+e/MqVoNXi4KD+1kQmz51ZnlH
+          region: us-east-1
+
+      - name: Trigger AWS CodePipeline
+        run: |
+          aws codepipeline start-pipeline-execution --name MyAWSCodePipeline
