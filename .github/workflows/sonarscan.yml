@@ -21,7 +21,7 @@ jobs:
           docker run -d --name sonarqube -p 9000:9000 sonarqube:lts
           echo "Waiting for SonarQube to be ready..."
           
-          # Wait until SonarQube API responds with status "UP"
+          # Wait until SonarQube API responds with "UP"
           for i in {1..30}; do
             STATUS=$(curl -s http://localhost:9000/api/system/status | jq -r '.status')
             if [[ "$STATUS" == "UP" ]]; then
@@ -36,8 +36,10 @@ jobs:
         run: |
           wget -O sonar-scanner.zip https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip
           unzip sonar-scanner.zip
-          mv sonar-scanner-5.0.1.3006-linux /opt/sonar-scanner
-          echo "/opt/sonar-scanner/bin" >> $GITHUB_PATH
+          sudo mv sonar-scanner-5.0.1.3006-linux /opt/sonar-scanner
+          echo "export PATH=/opt/sonar-scanner/bin:$PATH" >> ~/.bashrc
+          export PATH="/opt/sonar-scanner/bin:$PATH"
+          source ~/.bashrc
 
       - name: Run SonarQube Scan
         env:
@@ -55,9 +57,28 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}  # 🔒 Securely fetch from GitHub Secrets
         run: |
           sleep 10
-          STATUS=$(curl -s -u admin:$SONAR_TOKEN "http://localhost:9000/api/qualitygates/project_status?projectKey=MyProject" | jq -r '.projectStatus.status')
+          STATUS=$(curl -s -H "Authorization: Bearer $SONAR_TOKEN" "http://localhost:9000/api/qualitygates/project_status?projectKey=MyProject" | jq -r '.projectStatus.status')
           echo "SonarQube Quality Gate Status: $STATUS"
           if [[ "$STATUS" != "OK" ]]; then
             echo "❌ Security vulnerabilities found! Stopping pipeline."
             exit 1
           fi
+
+  deploy_to_aws:
+    needs: sonar_scan  # Runs only if SonarQube scan passes
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          region: us-east-1
+
+      - name: Trigger AWS CodePipeline
+        run: |
+          aws codepipeline start-pipeline-execution --name MyAWSCodePipeline
