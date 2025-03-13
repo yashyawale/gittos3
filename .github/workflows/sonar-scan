@@ -1,0 +1,105 @@
+name: SonarQube Scan & Deploy to AWS
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  sonar_scan:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install Dependencies (jq, curl, unzip)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq curl unzip
+
+      - name: Start SonarQube (Docker)
+        run: |
+          if [ "$(docker ps -aq -f name=sonarqube)" ]; then
+            echo "SonarQube container already exists. Restarting..."
+            docker start sonarqube
+          else
+            echo "Pulling and running SonarQube..."
+            docker pull sonarqube:lts
+            docker run -d --name sonarqube -p 9000:9000 sonarqube:lts
+          fi
+          
+          echo "Waiting for SonarQube to be ready..."
+          for i in {1..30}; do
+            STATUS=$(curl -s http://localhost:9000/api/system/status | jq -r '.status' || echo "DOWN")
+            if [[ "$STATUS" == "UP" ]]; then
+              echo "✅ SonarQube is ready!"
+              break
+            fi
+            echo "⏳ Waiting for SonarQube to start... ($i/30)"
+            sleep 10
+          done
+
+      - name: Install SonarQube Scanner
+        run: |
+          wget -O sonar-scanner.zip https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip
+          unzip sonar-scanner.zip
+          sudo mv sonar-scanner-5.0.1.3006-linux /opt/sonar-scanner
+          echo "export PATH=/opt/sonar-scanner/bin:$PATH" >> ~/.bashrc
+          echo "export PATH=/opt/sonar-scanner/bin:$PATH" >> ~/.profile
+          echo "export PATH=/opt/sonar-scanner/bin:$PATH" >> ~/.bash_profile
+          export PATH="/opt/sonar-scanner/bin:$PATH"
+          source ~/.bashrc
+          source ~/.profile
+          source ~/.bash_profile
+
+      - name: Verify SonarScanner Installation
+        run: |
+          export PATH="/opt/sonar-scanner/bin:$PATH"
+          sonar-scanner --version || { echo "❌ SonarScanner not found! Exiting pipeline."; exit 1; }
+
+      - name: Run SonarQube Scan
+        env:
+          SONAR_TOKEN: $sqa_a9d453d8a0528b5578ef289925bbc51ec7bd53c4
+          SONAR_HOST_URL: "http://localhost:9000"
+        run: |
+          export PATH="/usr/local/bin/:$PATH"
+          sonar-scanner \
+            -Dsonar.projectKey=MyProject \
+            -Dsonar.sources=. \
+            -Dsonar.host.url=$SONAR_HOST_URL \
+            -Dsonar.login=$SONAR_TOKEN
+
+      - name: Check SonarQube Quality Gate
+        env:
+          SONAR_TOKEN: $sqa_a9d453d8a0528b5578ef289925bbc51ec7bd53c4
+        run: |
+          sleep 10
+          STATUS=$(curl -s -H "Authorization: Bearer $SONAR_TOKEN" "http://localhost:9000/api/qualitygates/project_status?projectKey=MyProject" | jq -r '.projectStatus.status')
+          echo "SonarQube Quality Gate Status: $STATUS"
+          if [[ "$STATUS" != "OK" ]]; then
+            echo "❌ Security vulnerabilities found! Stopping pipeline."
+            exit 1
+          fi
+
+  deploy_to_aws:
+    needs: sonar_scan  # Runs only if SonarQube scan passes
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: $AKIAXWHDL474OVPSRFN7
+          aws-secret-access-key: $LPRv1BF7lEiw+R8+e/MqVoNXi4KD+1kQmz51ZnlH
+          region: us-east-1
+
+      - name: Trigger AWS CodePipeline
+        run: |
+          aws codepipeline start-pipeline-execution --name MyAWSCodePipeline
