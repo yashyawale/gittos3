@@ -16,9 +16,13 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Ensure SonarQube is Installed and Running
+      - name: Install Dependencies (jq, curl, unzip)
         run: |
-          # Check if SonarQube container exists
+          sudo apt-get update
+          sudo apt-get install -y jq curl unzip
+
+      - name: Start SonarQube (Docker)
+        run: |
           if [ "$(docker ps -aq -f name=sonarqube)" ]; then
             echo "SonarQube container already exists. Restarting..."
             docker start sonarqube
@@ -45,10 +49,14 @@ jobs:
           unzip sonar-scanner.zip
           sudo mv sonar-scanner-5.0.1.3006-linux /opt/sonar-scanner
           echo "export PATH=/opt/sonar-scanner/bin:$PATH" >> ~/.bashrc
+          echo "export PATH=/opt/sonar-scanner/bin:$PATH" >> ~/.profile
+          echo "export PATH=/opt/sonar-scanner/bin:$PATH" >> ~/.bash_profile
           export PATH="/opt/sonar-scanner/bin:$PATH"
           source ~/.bashrc
+          source ~/.profile
+          source ~/.bash_profile
 
-      - name: Verify SonarQube Scanner Installation
+      - name: Verify SonarScanner Installation
         run: |
           export PATH="/opt/sonar-scanner/bin:$PATH"
           sonar-scanner --version || { echo "❌ SonarScanner not found! Exiting pipeline."; exit 1; }
@@ -78,7 +86,7 @@ jobs:
           fi
 
   deploy_to_aws:
-    needs: sonar_scan
+    needs: sonar_scan  # Runs only if SonarQube scan passes
     runs-on: ubuntu-latest
 
     steps:
@@ -95,4 +103,3 @@ jobs:
       - name: Trigger AWS CodePipeline
         run: |
           aws codepipeline start-pipeline-execution --name MyAWSCodePipeline
-
