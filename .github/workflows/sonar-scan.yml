@@ -61,6 +61,16 @@ jobs:
           export PATH="/opt/sonar-scanner/bin:$PATH"
           sonar-scanner --version || { echo "❌ SonarScanner not found! Exiting pipeline."; exit 1; }
 
+      - name: Check SonarQube Status
+        run: |
+          STATUS=$(curl -s http://localhost:9000/api/system/status | jq -r '.status' || echo "DOWN")
+          echo "SonarQube Status: $STATUS"
+          if [[ "$STATUS" != "UP" ]]; then
+            echo "❌ SonarQube is not running! Exiting pipeline."
+            exit 1
+          fi
+
+
       - name: Run SonarQube Scan
         env:
           SONAR_TOKEN: ${{ secrets.ROHIT_TOKEN_SONAR }}
