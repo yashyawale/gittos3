@@ -69,7 +69,7 @@ jobs:
 
       - name: Validate SonarQube Login
         env:
-          SONAR_TOKEN: $sqp_007d1174a38aebe6c0cd4e82fd6fea650b87e20d
+          SONAR_TOKEN: $sqa_a9d453d8a0528b5578ef289925bbc51ec7bd53c4
         run: |
           RESPONSE=$(curl -s -u "$SONAR_TOKEN:" http://localhost:9000/api/authentication/validate | jq -r '.valid')
           if [[ "$RESPONSE" != "true" ]]; then
@@ -81,7 +81,7 @@ jobs:
 
       - name: Run SonarQube Scan
         env:
-          SONAR_TOKEN: $sqp_007d1174a38aebe6c0cd4e82fd6fea650b87e20d
+          SONAR_TOKEN: $sqa_a9d453d8a0528b5578ef289925bbc51ec7bd53c4
           SONAR_HOST_URL: "http://localhost:9000"
         run: |
           export PATH="/opt/sonar-scanner/bin/:$PATH"
@@ -93,7 +93,7 @@ jobs:
 
       - name: Check SonarQube Quality Gate
         env:
-          SONAR_TOKEN: $sqp_007d1174a38aebe6c0cd4e82fd6fea650b87e20d
+          SONAR_TOKEN: $sqa_a9d453d8a0528b5578ef289925bbc51ec7bd53c4
         run: |
           sleep 10
           STATUS=$(curl -s -H "Authorization: Bearer $SONAR_TOKEN" "http://localhost:9000/api/qualitygates/project_status?projectKey=gittos3" | jq -r '.projectStatus.status')
