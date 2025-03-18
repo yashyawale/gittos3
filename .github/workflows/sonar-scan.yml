@@ -50,11 +50,8 @@ jobs:
           sudo mv sonar-scanner-5.0.1.3006-linux /opt/sonar-scanner
           echo "export PATH=/opt/sonar-scanner/bin:$PATH" >> ~/.bashrc
           echo "export PATH=/opt/sonar-scanner/bin:$PATH" >> ~/.profile
-          echo "export PATH=/opt/sonar-scanner/bin:$PATH" >> ~/.bash_profile
-          export PATH="/opt/sonar-scanner/bin:$PATH"
           source ~/.bashrc
           source ~/.profile
-          source ~/.bash_profile
 
       - name: Verify SonarScanner Installation
         run: |
@@ -70,15 +67,26 @@ jobs:
             exit 1
           fi
 
+      - name: Validate SonarQube Login
+        env:
+          SONAR_TOKEN: $sqa_a9d453d8a0528b5578ef289925bbc51ec7bd53c4
+        run: |
+          RESPONSE=$(curl -s -u "$SONAR_TOKEN:" http://localhost:9000/api/authentication/validate | jq -r '.valid')
+          if [[ "$RESPONSE" != "true" ]]; then
+            echo "❌ Authentication failed! Check SonarQube token."
+            exit 1
+          else
+            echo "✅ Authentication successful."
+          fi
 
       - name: Run SonarQube Scan
         env:
-          SONAR_TOKEN: ${{ secrets.ROHIT_TOKEN_SONAR }}
+          SONAR_TOKEN: $sqa_a9d453d8a0528b5578ef289925bbc51ec7bd53c4
           SONAR_HOST_URL: "http://localhost:9000"
         run: |
           export PATH="/opt/sonar-scanner/bin/:$PATH"
           sonar-scanner \
-            -Dsonar.projectKey=MyProject \
+            -Dsonar.projectKey=gittos3 \
             -Dsonar.sources=. \
             -Dsonar.host.url=$SONAR_HOST_URL \
             -Dsonar.login=$SONAR_TOKEN
@@ -88,7 +96,7 @@ jobs:
           SONAR_TOKEN: $sqa_a9d453d8a0528b5578ef289925bbc51ec7bd53c4
         run: |
           sleep 10
-          STATUS=$(curl -s -H "Authorization: Bearer $SONAR_TOKEN" "http://localhost:9000/api/qualitygates/project_status?projectKey=MyProject" | jq -r '.projectStatus.status')
+          STATUS=$(curl -s -H "Authorization: Bearer $SONAR_TOKEN" "http://localhost:9000/api/qualitygates/project_status?projectKey=gittos3" | jq -r '.projectStatus.status')
           echo "SonarQube Quality Gate Status: $STATUS"
           if [[ "$STATUS" != "OK" ]]; then
             echo "❌ Security vulnerabilities found! Stopping pipeline."
