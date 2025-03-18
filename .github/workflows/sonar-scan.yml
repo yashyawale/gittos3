@@ -78,18 +78,17 @@ jobs:
           else
             echo "✅ Authentication successful."
           fi
-
-      - name: Run SonarQube Scan
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: "http://localhost:9000"
+            - name: Run SonarQube Scan
         run: |
-          export PATH="/opt/sonar-scanner/bin/:$PATH"
-          sonar-scanner \
-            -Dsonar.projectKey=gittos3 \
-            -Dsonar.sources=. \
-            -Dsonar.host.url=$SONAR_HOST_URL \
-            -Dsonar.login=$SONAR_TOKEN
+          docker run --rm \
+            -e "SONAR_HOST_URL=${{ secrets.SONAR_HOST_URL }}" \
+            -e "SONAR_TOKEN=${{ secrets.SONAR_TOKEN }}" \
+            -v "${{ github.workspace }}:/usr/src" \
+            sonarsource/sonar-scanner-cli \
+            -Dsonar.projectKey="gittos3" \
+            -Dsonar.sources="." \
+            -Dsonar.host.url="${{ secrets.SONAR_HOST_URL }}" \
+            -Dsonar.login="${{ secrets.SONAR_TOKEN }}"
 
       - name: Check SonarQube Quality Gate
         env:
