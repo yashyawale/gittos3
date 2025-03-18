@@ -69,7 +69,7 @@ jobs:
 
       - name: Validate SonarQube Login
         env:
-          SONAR_TOKEN: $sqa_a9d453d8a0528b5578ef289925bbc51ec7bd53c4
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
           RESPONSE=$(curl -s -u "$SONAR_TOKEN:" http://localhost:9000/api/authentication/validate | jq -r '.valid')
           if [[ "$RESPONSE" != "true" ]]; then
@@ -81,7 +81,7 @@ jobs:
 
       - name: Run SonarQube Scan
         env:
-          SONAR_TOKEN: $sqa_a9d453d8a0528b5578ef289925bbc51ec7bd53c4
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: "http://localhost:9000"
         run: |
           export PATH="/opt/sonar-scanner/bin/:$PATH"
@@ -93,7 +93,7 @@ jobs:
 
       - name: Check SonarQube Quality Gate
         env:
-          SONAR_TOKEN: $sqa_a9d453d8a0528b5578ef289925bbc51ec7bd53c4
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
           sleep 10
           STATUS=$(curl -s -H "Authorization: Bearer $SONAR_TOKEN" "http://localhost:9000/api/qualitygates/project_status?projectKey=gittos3" | jq -r '.projectStatus.status')
@@ -114,8 +114,8 @@ jobs:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
-          aws-access-key-id: $AKIAXWHDL474OVPSRFN7
-          aws-secret-access-key: $LPRv1BF7lEiw+R8+e/MqVoNXi4KD+1kQmz51ZnlH
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           region: us-east-1
 
       - name: Trigger AWS CodePipeline
